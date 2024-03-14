@@ -63,7 +63,7 @@ static uint32_t left_rotate(uint32_t val, uint8_t amount)
   return ((val >> (32 - rot)) | (val << rot));
 }
 
-static void md5_round(uint32_t data[], uint32_t *p_a, uint32_t *p_b, uint32_t *p_c, uint32_t *p_d)
+static void md5_round(const uint32_t data[], uint32_t *p_a, uint32_t *p_b, uint32_t *p_c, uint32_t *p_d)
 {
   uint32_t a = *p_a;
   uint32_t b = *p_b;
@@ -106,7 +106,7 @@ static void md5_round(uint32_t data[], uint32_t *p_a, uint32_t *p_b, uint32_t *p
   *p_d += d;
 }
 
-void sha1_round(uint32_t data[], uint32_t *p_h0, uint32_t *p_h1, uint32_t *p_h2, uint32_t *p_h3, uint32_t *p_h4)
+void sha1_round(const uint32_t data[], uint32_t *p_h0, uint32_t *p_h1, uint32_t *p_h2, uint32_t *p_h3, uint32_t *p_h4)
 {
   uint32_t a = *p_h0;
   uint32_t b = *p_h1;
@@ -158,7 +158,7 @@ void sha1_round(uint32_t data[], uint32_t *p_h0, uint32_t *p_h1, uint32_t *p_h2,
   *p_h4 += e;
 }
 
-uint8_t pad_message(uint8_t data[], size_t len, uint8_t tail[], bool be)
+uint8_t pad_message(const uint8_t data[], size_t len, uint8_t tail[], bool be)
 {
   uint8_t tail_size = 1;
   // Padding
@@ -173,7 +173,7 @@ uint8_t pad_message(uint8_t data[], size_t len, uint8_t tail[], bool be)
   printf("Orig length: %d, rest:%d, tail_size: %d\n", (int)len, rest, tail_size);
 #endif
   uint8_t idx;
-  uint8_t *src = &data[len-rest-1];
+  const uint8_t *src = &data[len-rest-1];
   for(idx = 0; idx < rest; ++idx){
     tail[idx] = *(++src);
   }
@@ -198,7 +198,7 @@ uint8_t pad_message(uint8_t data[], size_t len, uint8_t tail[], bool be)
   return tail_size;
 }
 
-void md5sum(uint8_t data[], size_t len, uint32_t res[])
+void md5sum(const uint8_t data[], size_t len, uint32_t res[])
 {
 
   uint8_t tail[128] = {0};
@@ -223,7 +223,7 @@ void md5sum(uint8_t data[], size_t len, uint32_t res[])
   }
 }
 
-void sha1sum(uint8_t data[], size_t len, uint32_t res[])
+void sha1sum(const uint8_t data[], size_t len, uint32_t res[])
 {
 
   uint8_t tail[128] = {0};

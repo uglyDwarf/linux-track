@@ -3,7 +3,7 @@
 .SH NAME
 ltr_extractor - extracts TrackIR/SmartNav firmware files and other necessary informations needed by Linuxtrack
 .SH SYNOPSYS
-.B ltr_extractor --extract | --update | --create [--spec file] file1 [file2 ... ]
+.B ltr_extractor --extract | --update | --create [--blob] [--installer file] [--destination directory] [--spec file] file1 [file2 ... ]
 .SH DESCRIPTION
 ltr_extractor allows user to extract files necessary for Linuxtrack to utilize TrackIR/SmartNav devices.
 These files are extracted from NaturalPoint's TrackIR software; the software itself can be installed using 
@@ -20,15 +20,34 @@ For developer's usage - create signatures of files provided.
 When updated game identifiers are downloaded, this command decrypts the informations.
 .SH OPTIONS
 .TP
-.B --spec
-Specify alternative spec file; when used with --extract, extraction uses this file instead of the default one.
-When used with --create, the data are written to the specified file.
-.B fileX
-Name of file/files to be processed.
+.B --spec file
+Specify alternative spec file; when used with --extract, extraction uses this
+.B file
+instead of the default one. When used with --create, the data are written to the
+.B file.
 
-.SH Example of the extraction
-You can download the NP software from the company website and install it the following way
-to a temporary prefix:
+.TP
+.B --blob
+Instruct the extractor to create a blob or extract using it. Requires the installer argument.
+.TP
+.B --installer file
+Instructs the extractor to use a particular installer
+.B file
+to create/unpack a blob.
+.TP
+.B --destination directory
+Do not store extracted files in the default destination, but use the
+.B directory 
+to store the extracted files.
+
+
+.SH Example of the recommended firmware extraction procedure
+Download a TrackIR software installer and use the following command to extract the firmware:
+
+.B ltr_extractor -e -b -i ~/Downloads/TrackIR_5.4.2.exe
+
+If the blob file is not available for the installer you downloaded, you can proceed the
+Wine way; install it the following way to a temporary Wine prefix:
  
 .B mkdir /tmp/np
 .br
@@ -41,7 +60,13 @@ you can proceed to extraction:
 .br
 .B /tmp/np/drive_c/Program\\\\ Files\\\\ \\\(x86\\\\)/NaturalPoint/TrackIR5/*
 
-If all goes well, the necessary files are extracted.
+If all goes well, the necessary files are extracted. The above method also works if you
+copy the unpacked TrackIR software directory from a Windows machine.
+
+.SH Example of the blob creation
+This expects the firmware is already installed by some other way (e.g. via Wine).
+
+.B ltr_extractor -c -b -i ../TrackIR_5.4.2.exe $(find -L ~/.config/linuxtrack/tir_firmware -type f)
 
 .SH Example of the spec creation
 Command 
@@ -57,4 +82,35 @@ To download the update, use the following comand:
 
 .B ltr_extractor --update
 
+.SH Rationale
+Most of the TrackIR devices need a firmware to work.
+Soon after the first TrackIR device support was added, NaturalPoint chimed in, insisting
+the firmware is their intellectual property, so it can't be distributed along with the
+Linuxtrack itself. So the firmware files were packaged and the package was provided
+to NaturalPoint and Linuxtrack used to download it from there.
+Later on, after the SmartNav support was added, NaturalPoint requested that Linuxtrack
+should limit its functionality on Mac platform; namely it shouldn't allow usage of SmartNav
+as a virtual mouse. As there is no honest and/or reliable way to do that (library has no
+means to find out what is it used for), the decision was made to stop relying on
+NaturalPoint altogether.
+.br
+Currently there are several means of firmware (and several other files needed for Windows
+games using the TrackIR) extraction:
+.br
+TrackIR installer is installed using Wine into a temporary prefix and the necessary files
+are extracted from it. This method is probably the most general and it doesn't require a Windows
+machine. Downsides are, that it requires user interaction, it is not very fast and last, but not
+least it does require a Wine available (which proved problematic on Mac).
+.br
+If an user has access to a Windows machine, where the TrackIR software s installed, the
+whole directory can be transferred to a machine with Linuxtrack, which can extract the 
+files from it. You don't need Wine in this case, but the necessiry of having another machine with
+Windows doesn't make it very convenient.
+.br
+The newest method uses binary "blobs", that when combined with the appropriate TrackIR software installer,
+allow extraction of the necessary files. To be more precise, the blob itself is useless and without
+the appropriate installer contains no usefull information. That way the original NaturalPoint's request
+is respected (as they provide the installer), while having the benefit of needing no user interaction
+and no Wine. The downside is that the blobs are roughly 250kB big and they need to be created for each
+installer available.
 

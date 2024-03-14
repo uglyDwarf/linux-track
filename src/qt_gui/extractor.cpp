@@ -9,6 +9,7 @@
 
 #include "extractor.h"
 #include "hashing.h"
+#include "extract.h"
 #include "game_data.h"
 #include "ltr_gui_prefs.h"
 #include "help_view.h"
@@ -18,6 +19,29 @@
 #ifdef HAVE_CONFIG_H
   #include "../../config.h"
 #endif
+
+static bool linkResult(const QString& destPath)
+{
+  QString l = PrefProxy::getRsrcDirPath() + QString::fromUtf8("/tir_firmware");
+  if(QFile::exists(l)){
+    QFile::remove(l);
+  }
+  return QFile::link(destPath, l);
+}
+
+QString getBlobName(const QString& installerName)
+{
+  QFile installer{installerName};
+  if(!installer.open(QIODevice::ReadOnly)){
+    return QStringLiteral("");
+  }
+
+  QByteArray buf = installer.read(installer.size());
+  QString md5{QString::fromUtf8(QCryptographicHash::hash(buf, QCryptographicHash::Md5).toHex())};
+  QString sha1{QString::fromUtf8(QCryptographicHash::hash(buf, QCryptographicHash::Sha1).toHex())};
+
+  return QStringLiteral("fw_blob_") + md5 + QStringLiteral("_") + sha1 + QStringLiteral(".bin");
+}
 
 void TirFwExtractThread::start(targets_t &t, const QString &p, const QString &d)
 {
@@ -463,6 +487,19 @@ void Mfc42uExtractor::commenceExtraction(QString file)
 #endif
 }
 
+bool Extractor::tryBlob(const QString& installerName)
+{
+  QString blob_name{getBlobName(installerName)};
+  if(blob_name.isEmpty()){
+    return false;
+  }
+  progress(QStringLiteral("Found blob. Commencing extraction."));
+  destPath = makeDestPath(PrefProxy::getRsrcDirPath());
+  QString blob_w_path = PrefProxy::getDataPath(blob_name);
+  return 0 == extract_blob(installerName.toUtf8().data(),
+                      destPath.toUtf8().data());
+}
+
 void Extractor::on_BrowseInstaller_pressed()
 {
   enableButtons(false);
@@ -472,6 +509,13 @@ void Extractor::on_BrowseInstaller_pressed()
     enableButtons(true);
     return;
   }
+  if(tryBlob(file)){
+    progress(QStringLiteral("Blob extraction finished."));
+    enableButtons(true);
+    linkResult(destPath);
+    return;
+  }
+  
   winePrefix = QDir::tempPath();
   winePrefix += QString::fromUtf8("/wineXXXXXX");
   QByteArray charData = winePrefix.toUtf8();
@@ -545,11 +589,7 @@ void TirFwExtractor::threadFinished()
   enableButtons(true);
   bool everything = et->haveEverything();
   if(everything){
-    QString l = PrefProxy::getRsrcDirPath() + QString::fromUtf8("/tir_firmware");
-      if(QFile::exists(l)){
-        QFile::remove(l);
-      }
-    QFile::link(destPath, l);
+    linkResult(destPath);
   }else{
     QMessageBox::warning(NULL, QString::fromUtf8("Firmware extraction unsuccessfull"),
       QString::fromUtf8("Some of the files needed to fully utilize TrackIR were not "

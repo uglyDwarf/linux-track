@@ -321,7 +321,7 @@ xlinuxtrack9_32_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 am_ltr_extractor_OBJECTS = ltr_extractor-hashing.$(OBJEXT) \
 	ltr_extractor-digest.$(OBJEXT) \
 	ltr_extractor-game_data.$(OBJEXT) \
-	ltr_extractor-utils.$(OBJEXT)
+	ltr_extractor-utils.$(OBJEXT) ltr_extractor-extract.$(OBJEXT)
 ltr_extractor_OBJECTS = $(am_ltr_extractor_OBJECTS)
 ltr_extractor_DEPENDENCIES =
 ltr_extractor_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
@@ -677,7 +677,7 @@ ltr_recenter_SOURCES = ltr_recenter.c ipc_utils.h ltr_srv_comm.c ltr_srv_comm.h
 ltr_recenter_CFLAGS = ${AM_CFLAGS} $(LINUXFLAGS)
 ltr_recenter_LDADD = -ldl liblinuxtrack.la libltr.la
 ltr_recenter_LDFLAGS = $(LINUXLDFLAGS) ${SLEOPARD_LDFLAG} -pthread
-ltr_extractor_SOURCES = hashing.c digest.c digest.h game_data.c game_data.h utils.c utils.h
+ltr_extractor_SOURCES = hashing.c digest.c digest.h game_data.c game_data.h utils.c utils.h extract.c extract.h
 ltr_extractor_CFLAGS = ${AM_CFLAGS} $(LINUXFLAGS) -Iqt_gui
 ltr_extractor_LDADD = -lmxml
 ltr_extractor_LDFLAGS = $(LINUXLDFLAGS) ${SLEOPARD_LDFLAG} -pthread
@@ -1280,6 +1280,12 @@ ltr_extractor-utils.o: utils.c
 
 ltr_extractor-utils.obj: utils.c
 	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(ltr_extractor_CFLAGS) $(CFLAGS) -c -o ltr_extractor-utils.obj `if test -f 'utils.c'; then $(CYGPATH_W) 'utils.c'; else $(CYGPATH_W) '$(srcdir)/utils.c'; fi`
+
+ltr_extractor-extract.o: extract.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(ltr_extractor_CFLAGS) $(CFLAGS) -c -o ltr_extractor-extract.o `test -f 'extract.c' || echo '$(srcdir)/'`extract.c
+
+ltr_extractor-extract.obj: extract.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(ltr_extractor_CFLAGS) $(CFLAGS) -c -o ltr_extractor-extract.obj `if test -f 'extract.c'; then $(CYGPATH_W) 'extract.c'; else $(CYGPATH_W) '$(srcdir)/extract.c'; fi`
 
 ltr_pipe-ltr_pipe.o: ltr_pipe.c
 	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ltr_pipe_CPPFLAGS) $(CPPFLAGS) $(ltr_pipe_CFLAGS) $(CFLAGS) -c -o ltr_pipe-ltr_pipe.o `test -f 'ltr_pipe.c' || echo '$(srcdir)/'`ltr_pipe.c

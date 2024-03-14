@@ -10,8 +10,8 @@
 
   #define MD5_DIGEST_LENGTH 16UL
   #define SHA_DIGEST_LENGTH 20UL
-  void md5sum(uint8_t data[], size_t len, uint32_t res[]);
-  void sha1sum(uint8_t data[], size_t len, uint32_t res[]);
+  void md5sum(const uint8_t data[], size_t len, uint32_t res[]);
+  void sha1sum(const uint8_t data[], size_t len, uint32_t res[]);
 
   #ifdef __cplusplus
     }

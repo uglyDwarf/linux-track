@@ -8,6 +8,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 // This dependency proved problematic (deprecating MD5 and spweing warnings)
@@ -18,6 +20,7 @@
 #include <getopt.h>
 #include "game_data.h"
 #include "utils.h"
+#include "extract.h"
 
 typedef struct{
   off_t length;
@@ -156,6 +159,27 @@ void print_hash(FILE *output, unsigned char *hash, size_t len)
   for(i = 0; i < len; ++i){
     fprintf(output, "%02x", hash[i]);
   }
+}
+
+char nibble2chr(int nibble)
+{
+  if(nibble < 10){
+    return '0' + nibble;
+  }
+  return 'a' + nibble - 10;
+}
+
+const char *hash2str(unsigned char *hash, size_t len)
+{
+  size_t i;
+  char *buffer = (char*)malloc(2*len+1);
+  if(!buffer) return NULL;
+  for(i = 0; i < len; ++i){
+    buffer[2*i] = nibble2chr(hash[i] >> 4);
+    buffer[2*i + 1] = nibble2chr(hash[i] & 0xF);
+  }
+  buffer[2*len] = 0;
+  return buffer;
 }
 
 void process_file(FILE *output, const char *name)
@@ -333,7 +357,7 @@ bool hashes_equal(unsigned char *h1, unsigned char *h2, int length)
   return true;
 }
 
-bool new_char(int c, struct spec_s *spec, FILE *f)
+bool new_char(int c, struct spec_s *spec, FILE *f, const char* destination)
 {
   spec->buffer[spec->index++] = c;
   spec->index = (spec->index + 1) % spec->length;
@@ -363,11 +387,11 @@ bool new_char(int c, struct spec_s *spec, FILE *f)
       return false;
     }
     //printf("SHA1 OK!\n");
-    char *tgt_data = ltr_int_get_default_file_name("tir_firmware/%s");
-    char *full_name;
-    if(asprintf(&full_name, tgt_data, spec->name) < 0){
-
+    char *tgt_data;
+    if(asprintf(&tgt_data, "%s/%s", destination, spec->name) < 0){
+      return false;
     }
+    char *full_name = ltr_int_get_default_file_name(tgt_data);
     FILE *r = fopen(full_name, "wb");
     if(r != NULL){
       if(fwrite(tmp_buffer, 1, spec->length, r) == spec->length){
@@ -399,7 +423,7 @@ bool new_char(int c, struct spec_s *spec, FILE *f)
   return true;
 }
 
-void search_file(FILE *f)
+void search_file(FILE *f, const char* destination)
 {
   int c, i;
   for(i = 0; i < specs; ++i){
@@ -414,7 +438,7 @@ void search_file(FILE *f)
     }
     for(i = 0; i < specs; ++i){
       if(!head[i].found){ //no need to search for what we found already
-        if(!new_char(c, &(head[i]), f)){
+        if(!new_char(c, &(head[i]), f, destination)){
           break;
         }
       }
@@ -422,7 +446,7 @@ void search_file(FILE *f)
   }
 }
 
-bool open_file_to_search(char *fname)
+bool open_file_to_search(char *fname, const char* destination)
 {
   if(strcmp(fname + (strlen(fname) - 7), "sgl.dat") == 0){
     printf("Decoding game data.\n");
@@ -435,7 +459,7 @@ bool open_file_to_search(char *fname)
       return false;
     }
     printf("Analyzing file %s.\n", fname);
-    search_file(f);
+    search_file(f, destination);
     fclose(f);
   }
   return true;
@@ -496,6 +520,140 @@ bool update_gamedata()
   return res;
 }
 
+void create_spec(bool custom_spec, const char *spec_path, int optind,
+	    int argc, char *argv[])
+{
+  FILE *f= NULL;
+  if(custom_spec){
+    f = fopen(spec_path, "w");
+    if(f == NULL){
+      printf("Can't open file '%s'.\n", spec_path);
+      f = stdout;
+    }
+  }else{
+    f = stdout;
+  }
+  while(optind < argc){
+    process_file(f, argv[optind++]);
+  }
+  if(custom_spec){
+    fclose(f);
+  }
+}
+
+/*
+char *get_blob_name(const char *installer_name)
+{
+  file_buf_t* inst_buf = read_file(installer_name);
+  if(inst_buf == NULL){
+    printf("Can't read '%s'.\n", installer_name);
+    return NULL;
+  }
+  unsigned char *md5sum = hash_md5(inst_buf);
+  unsigned char *sha1sum = hash_sha1(inst_buf);
+  const char *md5str = hash2str(md5sum, MD5_DIGEST_LENGTH);
+  const char *sha1str = hash2str(sha1sum, SHA_DIGEST_LENGTH);
+  free(md5sum);
+  free(sha1sum);
+  if(!md5str || !sha1str){
+    printf("Problem getting hash strings.\n");
+    return NULL;
+  }
+  char blob_name[1024];
+  int str_len = snprintf(blob_name, sizeof(blob_name), "fw_blob_%s_%s.bin",
+                         md5str, sha1str);
+  if((0 < str_len) && ((unsigned int)str_len >= sizeof(blob_name))){
+    printf("Blob name longer than the buffer!\n");
+    return NULL;
+  }
+  return ltr_int_my_strdup(blob_name);
+}
+*/
+
+void build_blob(const char *installer_name, int optind,
+	    int argc, char *argv[])
+{
+  char **files = (char **)malloc((argc-optind+1)*sizeof(char *));
+  if(files){
+    char **ptr = files;
+    while(optind < argc){
+      *ptr = argv[optind++];
+      ++ptr;
+    }
+    *ptr = NULL;
+    const char *blob_name = "blob_1.bin"; //get_blob_name(installer_name);
+    //if(blob_name){
+      create_blob(blob_name, (const char **)files, installer_name);
+      //free((char *)blob_name);
+    //}
+  }
+}
+
+static int swap_link(const char* dest)
+{
+  char *lnk = ltr_int_get_default_file_name("tir_firmware_new");
+  if(symlink(dest, lnk) != 0){
+    printf("Problem creating link '%s' to '%s'.", lnk, dest);
+    free(lnk);
+    return -1;
+  }
+  char *old_lnk = ltr_int_get_default_file_name("tir_firmware");
+  if(rename(lnk, old_lnk) != 0){
+    printf("Problem renaming link '%s' to '%s'.", lnk, old_lnk);
+    free(lnk);
+    free(old_lnk);
+    return -1;
+  }
+  free(lnk);
+  free(old_lnk);
+  return 0;
+}
+
+static char *get_time_string()
+{
+  time_t t = time(NULL);
+  struct tm *loc = localtime(&t);
+  if(!loc){
+    printf("Problem getting local time.\n");
+    return NULL;
+  }
+  char outstr[1024];
+  if(strftime(outstr, sizeof(outstr), "%y%m%d_%H%M%S", loc) == 0){
+    printf("Problem formatting time.\n");
+    return NULL;
+  }
+  return strdup(outstr);
+}
+
+static char* get_update_dir(const char* dirname, bool* is_link)
+{
+  struct stat info;
+  if(lstat(dirname, &info)){
+    printf("'%s' not found.\n", dirname);
+    return NULL;
+  }
+  if(info.st_mode & S_IFDIR){
+    *is_link = false;
+    return strdup(dirname);
+  }else if(info.st_mode & S_IFLNK){
+    *is_link = true;
+    //printf("'%s' is link.\n", dirname);
+    const char *date = get_time_string();
+    char *path = ltr_int_get_default_file_name(date);
+    if(!path){
+      printf("Problem creating new dirname.\n");
+      return NULL;
+    }
+    if(mkdir(path, S_IRWXU) != 0){
+      printf("Problem creating directory '%s'.\n", path);
+      free(path);
+      return NULL;
+    }
+    return path;
+  }
+  return NULL;
+}
+
 void print_help()
 {
   printf("ltr_extractor --extract | --create | --update [--spec file] file1 [file2 ...]\n");
@@ -508,6 +666,10 @@ int main(int argc, char *argv[])
   bool create = false;
   bool custom_spec = false;
   char *spec_path = NULL;
+  bool blob = false;
+  bool installer = false;
+  char *installer_name = NULL;
+  char *destination = NULL;
   int c;
   int index;
   static struct option long_opts[] = {
@@ -516,13 +678,16 @@ int main(int argc, char *argv[])
                    {"extract",     no_argument,       NULL, 'e'},
                    {"update",      no_argument,       NULL, 'u'},
                    {"help",        no_argument,       NULL, 'h'},
+                   {"blob",        no_argument,       NULL, 'b'},
+                   {"installer",   required_argument, NULL, 'i'},
+                   {"destination", required_argument, NULL, 'd'},
                    {0,             0,                 0,    0}
 
   };
 
   ltr_int_check_root();
   while(1){
-    c = getopt_long(argc, argv, "s:ceuh", long_opts, &index);
+    c = getopt_long(argc, argv, "s:ceuhbi:d:", long_opts, &index);
     if(c < 0){
       break;
     }
@@ -543,45 +708,67 @@ int main(int argc, char *argv[])
       case 'h':
         print_help();
         break;
+      case 'b': blob = true;
+	break;
+      case 'i':
+	if(optarg != NULL){
+		installer = true;
+		installer_name = optarg;
+	}
+	break;
+      case 'd':
+	if(optarg != NULL){
+		destination = strdup(optarg);
+	}
+	break;
       default:
         break;
     }
   }
 
   if(extract){
-    char *spec;
-    if(custom_spec){
-      spec = ltr_int_my_strdup(spec_path);
+    bool is_link = false;
+    if(!destination){
+      char *fw_dir = ltr_int_get_default_file_name("tir_firmware");
+      destination = get_update_dir(fw_dir, &is_link);
+      free(fw_dir);
+      if(destination == NULL){
+        printf("Problem creating the destination directory.\n");
+        return -1;
+      }
+    }
+    int res = 0;
+    if(blob && installer){
+      res = extract_blob(installer_name, destination);
     }else{
-      spec = ltr_int_get_data_path("spec.txt");
+      char *spec;
+      if(custom_spec){
+        spec = ltr_int_my_strdup(spec_path);
+      }else{
+        spec = ltr_int_get_data_path("spec.txt");
+      }
+      read_spec(spec);
+      free(spec);
+      spec = NULL;
+      print_spec_list();
+      int i = 2;
+      while(i < argc){
+        open_file_to_search(argv[i++], destination);
+      }
+      res = !check_missed();
+      free_specs();
     }
-    read_spec(spec);
-    free(spec);
-    spec = NULL;
-    print_spec_list();
-    int i = 2;
-    while(i < argc){
-      open_file_to_search(argv[i++]);
+    if((res == 0) && is_link){
+      swap_link(destination);
     }
-    check_missed();
-    free_specs();
+    free(destination);
   }else if(update){
     update_gamedata();
   }else if(create){
-    FILE *f= NULL;
-    if(custom_spec){
-      f = fopen(spec_path, "w");
-      if(f == NULL){
-        printf("Can't open file '%s'.\n", spec_path);
-      }
+    if(blob && installer){
+      build_blob(installer_name, optind, argc, argv);
     }else{
-      f = stdout;
-    }
-    while(optind < argc){
-      process_file(f, argv[optind++]);
-    }
-    if(custom_spec){
-      fclose(f);
+      create_spec(custom_spec, spec_path, optind, argc, argv);
     }
   }
   return 0;
@@ -591,5 +778,6 @@ int main(int argc, char *argv[])
 TODO:
 Add directory/link to tir_firmware creation.
 Create man page and add integrated help (with examples).
+Add checksums to blob records.
 */
 

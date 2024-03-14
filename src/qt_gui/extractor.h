@@ -63,6 +63,7 @@ class Extractor: public QDialog
   virtual void commenceExtraction(QString file){(void) file;};
   virtual void enableButtons(bool enable);
   virtual void browseDirPressed(){};
+  bool tryBlob(const QString& file);
  signals:
   void finished(bool result);
  public slots:

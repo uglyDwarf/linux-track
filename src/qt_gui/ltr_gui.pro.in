@@ -34,7 +34,7 @@ HEADERS += ltr_gui.h ltr_show.h ltr_dev_help.h help_view.h\
            profile_setup.h profile_selector.h guardian.h xplugin.h wine_warn.h \
            extractor.h ../game_data.h hashing.h downloading.h wine_launcher.h \
            macps3eye_prefs.h macwebcam_info.h ../ps3_prefs.h macps3eyeft_prefs.h \
-           help_viewer.h
+           help_viewer.h ../extract.h ../digest.h
 
 FORMS += ltr_gui.ui dev_help.ui ltr.ui model_creation.ui scurve.ui scp_form.ui \
            logview.ui wii_setup.ui tir_setup.ui \
@@ -52,7 +52,7 @@ SOURCES += main.cpp ltr_gui.cpp ltr_show.cpp ltr_dev_help.cpp \
            profile_selector.cpp xplugin.cpp wine_warn.cpp progress.cpp \
            extractor.cpp ../game_data.c hashing.cpp downloading.cpp wine_launcher.cpp \
            macps3eye_prefs.cpp macwebcam_info.cpp macps3eyeft_prefs.cpp \
-           help_viewer.cpp
+           help_viewer.cpp ../extract.c ../digest.c
 
 QMAKE_CXXFLAGS += -Wall -Wextra -DHAVE_CONFIG_H -DHELP_BASE="'\""ltr_gui/"\"'" -I @prefix@/include
 QMAKE_CFLAGS += -Wall -Wextra -DLTR_GUI  -I @prefix@/include

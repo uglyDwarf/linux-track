@@ -88,7 +88,7 @@ ltr_recenter_LDFLAGS = $(LINUXLDFLAGS) ${SLEOPARD_LDFLAG} -pthread
 bin_PROGRAMS += ltr_extractor
 man_MANS += ltr_extractor.1
 
-ltr_extractor_SOURCES = hashing.c digest.c digest.h game_data.c game_data.h utils.c utils.h
+ltr_extractor_SOURCES = hashing.c digest.c digest.h game_data.c game_data.h utils.c utils.h extract.c extract.h
 ltr_extractor_CFLAGS = ${AM_CFLAGS} $(LINUXFLAGS) -Iqt_gui
 ltr_extractor_LDADD = -lmxml
 ltr_extractor_LDFLAGS = $(LINUXLDFLAGS) ${SLEOPARD_LDFLAG} -pthread
