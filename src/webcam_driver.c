@@ -70,11 +70,12 @@ static char *get_webcam_id(int fd)
   int ioctl_res = v4l2_ioctl(fd, VIDIOC_QUERYCAP, &capability);
   if(ioctl_res == 0){
     __u32 cap = capability.capabilities;
+    __u32 dev_cap = capability.device_caps;
     ltr_int_log_message("  Found V4L2 webcam: '%s'\n",
       		capability.card);
     //Look for capabilities we need
     if((cap & V4L2_CAP_VIDEO_CAPTURE) &&
-      (cap & V4L2_CAP_STREAMING)){
+      (cap & V4L2_CAP_STREAMING) && (dev_cap & V4L2_CAP_VIDEO_CAPTURE)){
       ////for leading space infested name verification
       //  char *spaced_name = NULL;
       //  asprintf(&spaced_name, " %s",(char *)capability.card);
@@ -96,8 +97,12 @@ static int is_our_webcam(const char *fname, const char *webcam_id)
   }
 
   char *current_id = get_webcam_id(fd);
+  if(current_id == NULL){
+    v4l2_close(fd);
+    return -1;
+  }
   char *stripped = current_id + strspn(current_id, " \t");
-  if((current_id != NULL) && strncasecmp(stripped, webcam_id, strlen(webcam_id)) == 0){
+  if(strncasecmp(stripped, webcam_id, strlen(webcam_id)) == 0){
     //this is the device we are looking for!
     free(current_id);
     return fd;

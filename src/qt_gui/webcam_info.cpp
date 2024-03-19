@@ -213,6 +213,9 @@ int WebcamInfo::findRes(const int &res_x, const int &res_y, const int &fps_num,
 bool WebcamInfo::findFmtSpecs(int i_fmt, int i_res, QString &res, 
 			      QString &fps, QString &fmt)
 {
+  if((i_fmt >= fmt_descs.size()) || (i_res >= fmt_descs[i_fmt].size())){
+    return false;
+  }
   webcam_format* format = fmt_descs[i_fmt][i_res];
   res = QString::fromUtf8("%1 x %2").arg(QString::number(format->w))
                           .arg(QString::number(format->h));
