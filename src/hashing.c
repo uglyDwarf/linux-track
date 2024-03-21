@@ -362,63 +362,62 @@ bool new_char(int c, struct spec_s *spec, FILE *f, const char* destination)
   spec->buffer[spec->index++] = c;
   spec->index = (spec->index + 1) % spec->length;
   uint16_t csum = csum_compute(c, &(spec->csum_buf));
-  if(csum == spec->csum){
-    long tmp_pos = ftell(f);
-    //printf("Have candidate for %s at %ld\n", spec->name, tmp_pos - CSUM_BUF_LEN);
-    fseek(f, - CSUM_BUF_LEN, SEEK_CUR);
-    if(fread(tmp_buffer, 1, spec->length, f) != spec->length){
+  if(csum != spec->csum){
+    return true;
+  }
+  long tmp_pos = ftell(f);
+  //printf("Have candidate for %s at %ld\n", spec->name, tmp_pos - CSUM_BUF_LEN);
+  fseek(f, - CSUM_BUF_LEN, SEEK_CUR);
+  if(fread(tmp_buffer, 1, spec->length, f) != spec->length){
+    return false;
+  }
+  fseek(f, tmp_pos, SEEK_SET);
+  file_buf_t tmp_fb;
+  tmp_fb.data = tmp_buffer;
+  tmp_fb.length = spec->length;
+  unsigned char *md5 = hash_md5(&tmp_fb);
+  bool hash_ok = hashes_equal(md5, spec->md5, MD5_DIGEST_LENGTH);
+  free(md5);
+  if(!hash_ok){
+    return false;
+  }
+  //printf("MD5 OK!\n");
+  unsigned char *sha1 = hash_sha1(&tmp_fb);
+  hash_ok = hashes_equal(sha1, spec->sha1, SHA_DIGEST_LENGTH);
+  free(sha1);
+  if(!hash_ok){
+    return false;
+  }
+  //printf("SHA1 OK!\n");
+  char *tgt_data;
+  if(asprintf(&tgt_data, "%s/%s", destination, spec->name) < 0){
+    return false;
+  }
+  FILE *r = fopen(tgt_data, "wb");
+  if(r == NULL){
+    printf("Data for %s found, but couldn't open '%s'.", spec->name, tgt_data);
+  }
+  if(fwrite(tmp_buffer, 1, spec->length, r) == spec->length){
+    printf("  Written %s\n", spec->name);
+    spec->found = true;
+  }
+  fclose(r);
+  if(strcmp(spec->name + (strlen(spec->name) - 3), ".fw") == 0){
+    const char command[] = "gzip -f -9 ";
+    int command_length = strlen(tgt_data) + strlen(command) + 1;
+    char *commandline = (char *)malloc(command_length);
+    if(commandline == NULL){
       return false;
     }
-    fseek(f, tmp_pos, SEEK_SET);
-    file_buf_t tmp_fb;
-    tmp_fb.data = tmp_buffer;
-    tmp_fb.length = spec->length;
-    unsigned char *md5 = hash_md5(&tmp_fb);
-    bool hash_ok = hashes_equal(md5, spec->md5, MD5_DIGEST_LENGTH);
-    free(md5);
-    if(!hash_ok){
-      return false;
+    snprintf(commandline, command_length, "%s%s", command, tgt_data);
+    printf("    Packing the firmware '%s'.\n", spec->name);
+    if(system(commandline) != 0){
+      printf("    Failed to pack the firmware file '%s'.\n", spec->name);
     }
-    //printf("MD5 OK!\n");
-    unsigned char *sha1 = hash_sha1(&tmp_fb);
-    hash_ok = hashes_equal(sha1, spec->sha1, SHA_DIGEST_LENGTH);
-    free(sha1);
-    if(!hash_ok){
-      return false;
-    }
-    //printf("SHA1 OK!\n");
-    char *tgt_data;
-    if(asprintf(&tgt_data, "%s/%s", destination, spec->name) < 0){
-      return false;
-    }
-    char *full_name = ltr_int_get_default_file_name(tgt_data);
-    FILE *r = fopen(full_name, "wb");
-    if(r != NULL){
-      if(fwrite(tmp_buffer, 1, spec->length, r) == spec->length){
-        printf("  Written %s\n", spec->name);
-        spec->found = true;
-      }
-      fclose(r);
-      if(strcmp(spec->name + (strlen(spec->name) - 3), ".fw") == 0){
-        const char command[] = "gzip -f -9 ";
-        int command_length = strlen(full_name) + strlen(command) + 1;
-        char *commandline = (char *)malloc(command_length);
-        if(commandline == NULL){
-          return false;
-        }
-        snprintf(commandline, command_length, "%s%s", command, full_name);
-        printf("    Packing the firmware '%s'.\n", spec->name);
-        if(system(commandline) != 0){
-          printf("    Failed to pack the firmware file '%s'.\n", spec->name);
-        }
-        free(commandline);
-        commandline = NULL;
-        free(full_name);
-        full_name = NULL;
-        free(tgt_data);
-        tgt_data = NULL;
-      }
-    }
+    free(commandline);
+    commandline = NULL;
+    free(tgt_data);
+    tgt_data = NULL;
   }
   return true;
 }
@@ -718,7 +717,7 @@ int main(int argc, char *argv[])
 	break;
       case 'd':
 	if(optarg != NULL){
-		destination = strdup(optarg);
+		destination = ltr_int_my_strdup(optarg);
 	}
 	break;
       default:
@@ -751,7 +750,7 @@ int main(int argc, char *argv[])
       free(spec);
       spec = NULL;
       print_spec_list();
-      int i = 2;
+      int i = optind;
       while(i < argc){
         open_file_to_search(argv[i++], destination);
       }
