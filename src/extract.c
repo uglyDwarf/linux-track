@@ -292,6 +292,7 @@ static FILE* find_blob(const char *installer_name)
 	uint8_t installer_sums[SHA_DIGEST_LENGTH+MD5_DIGEST_LENGTH];
         if(get_file_checksums(installer, installer_sums) != 0){
 		printf("Problem computing installer checksums.");
+		fclose(installer);
 		return NULL;
 	}
 
@@ -299,32 +300,37 @@ static FILE* find_blob(const char *installer_name)
 	blobs.gl_offs = 0;
 	FILE* res = NULL;
 	char *pattern = ltr_int_get_data_path("blob_*.bin");
-	if(glob(pattern, GLOB_NOSORT, NULL, &blobs) != GLOB_NOMATCH){
-		for(size_t i = 0; i < blobs.gl_pathc; ++i){
-			res = fopen(blobs.gl_pathv[i], "rb");
-			if(res){
-				uint8_t sums[SHA_DIGEST_LENGTH + MD5_DIGEST_LENGTH];
-				if(fread(sums, sizeof(uint8_t), SHA_DIGEST_LENGTH + MD5_DIGEST_LENGTH, res) ==
-						SHA_DIGEST_LENGTH + MD5_DIGEST_LENGTH){
-					uint8_t sum = 0;
-					for(size_t j = 0; j < SHA_DIGEST_LENGTH + MD5_DIGEST_LENGTH; ++j){
-						sum |= installer_sums[j] ^ sums[j];
-					}
-					if(sum == 0){
-						free(pattern);
-						globfree(&blobs);
-						return res;
-					}
-
-				}
-				fclose(res);
-				res = NULL;
-			}
+	if(glob(pattern, GLOB_NOSORT, NULL, &blobs) == GLOB_NOMATCH){
+		free(pattern);
+		globfree(&blobs);
+		fclose(installer);
+		return NULL;
+	}
+	for(size_t i = 0; i < blobs.gl_pathc; ++i){
+		res = fopen(blobs.gl_pathv[i], "rb");
+		if(!res){
+			continue;
 		}
+		uint8_t sums[sums_len];
+		if(fread(sums, sizeof(uint8_t), sums_len, res) != sums_len){
+			fclose(res);
+			res = NULL;
+			continue;
+		}
+		uint8_t sum = 0;
+		for(size_t j = 0; j < sums_len; ++j){
+			sum |= installer_sums[j] ^ sums[j];
+		}
+		if(sum == 0){
+			break;
+		}
+		fclose(res);
+		res = NULL;
 	}
 	free(pattern);
 	globfree(&blobs);
-	return NULL;
+	fclose(installer);
+	return res;
 }
 
 
@@ -347,6 +353,8 @@ int extract_blob(const char *inst, const char* destination)
         
 	extract_files(f, installer, destination);
 
+
+	printf("Freeing f\n");
 	fclose(f);
 	fclose(installer);
 	return 0;

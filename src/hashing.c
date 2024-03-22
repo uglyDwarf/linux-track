@@ -416,9 +416,9 @@ bool new_char(int c, struct spec_s *spec, FILE *f, const char* destination)
     }
     free(commandline);
     commandline = NULL;
-    free(tgt_data);
-    tgt_data = NULL;
   }
+  free(tgt_data);
+  tgt_data = NULL;
   return true;
 }
 
@@ -573,19 +573,22 @@ void build_blob(const char *installer_name, int optind,
 	    int argc, char *argv[])
 {
   char **files = (char **)malloc((argc-optind+1)*sizeof(char *));
-  if(files){
-    char **ptr = files;
-    while(optind < argc){
-      *ptr = argv[optind++];
-      ++ptr;
-    }
-    *ptr = NULL;
-    const char *blob_name = "blob_1.bin"; //get_blob_name(installer_name);
-    //if(blob_name){
-      create_blob(blob_name, (const char **)files, installer_name);
-      //free((char *)blob_name);
-    //}
+  if(!files){
+    printf("Couldn't allocate memory.\n");
+    return;
   }
+  char **ptr = files;
+  while(optind < argc){
+    *ptr = argv[optind++];
+    ++ptr;
+  }
+  *ptr = NULL;
+  const char *blob_name = "blob_1.bin"; //get_blob_name(installer_name);
+  //if(blob_name){
+    create_blob(blob_name, (const char **)files, installer_name);
+    //free((char *)blob_name);
+  //}
+  free(files);
 }
 
 static int swap_link(const char* dest)
