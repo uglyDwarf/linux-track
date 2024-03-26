@@ -11,7 +11,7 @@
 
 class FastHash{
  public:
-  FastHash(){buffer.reserve(length); init();};
+  FastHash():buffer(length, 0), index{0}{};
   void init(){for(int i = 0; i < length; ++i) buffer[i] = 0; index = 0;};
   uint16_t hash(char val){
     buffer[index] = val;
