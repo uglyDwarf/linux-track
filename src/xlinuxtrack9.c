@@ -557,7 +557,7 @@ static char line3[] = " - Settings -> Joystick, Keys and Equipment -> Keys to se
 static XPWidgetID		setupText4;
 static char line4[] = "Use commands linuxtrack/ltr_run, linuxtrack/ltr_pause, linuxtrack/ltr_recenter.";
 static XPWidgetID		setupText5;
-static char line5[] = "For more details refer to http://code.google.com/p/linux-track/wiki/XplanePluginSetup";
+static char line5[] = "For more details refer to https://github.com/uglyDwarf/linuxtrack/wiki/";
 static XPWidgetID		setupText6;
 static char line6[] = "Pilotview plugin found, chanelling headtracking data through it!";
 static char title[] = "Linuxtrack v"
